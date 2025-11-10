@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Rule-Based Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="chat-container">
+        <h2>💬 Python Chatbot</h2>
+        <div id="chat-box" class="chat-box"></div>
+
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off" />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        async function sendMessage() {
+            let input = document.getElementById("user-input");
+            let userText = input.value.trim();
+            if (!userText) return;
+
+            let chatBox = document.getElementById("chat-box");
+            chatBox.innerHTML += `<div class='user-msg'>You: ${userText}</div>`;
+            input.value = "";
+
+            const response = await fetch("/get", {
+                method: "POST",
+                body: new URLSearchParams({ msg: userText }),
+                headers: { "Content-Type": "application/x-www-form-urlencoded" }
+            });
+
+            const data = await response.json();
+            chatBox.innerHTML += `<div class='bot-msg'>Bot: ${data.response}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
