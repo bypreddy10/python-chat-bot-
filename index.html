@@ -2,40 +2,201 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Rule-Based Chatbot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chatbot Assistant</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
     <div class="chat-container">
-        <h2>💬 Python Chatbot</h2>
-        <div id="chat-box" class="chat-box"></div>
+        <div class="chat-header">
+            <div class="bot-info">
+                <div class="bot-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="bot-details">
+                    <h2>AI Assistant</h2>
+                    <span class="status">
+                        <i class="fas fa-circle online"></i>
+                        Online
+                    </span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="clear-btn" onclick="clearChat()" title="Clear chat">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="chat-box" class="chat-box">
+            <div class="welcome-message">
+                <div class="bot-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="welcome-text">
+                    <h3>Hello! I'm your AI Assistant 👋</h3>
+                    <p>I'm here to help you with questions, calculations, fun facts, and more!</p>
+                    <div class="suggestions">
+                        <span class="suggestion" onclick="sendQuickMessage('What time is it?')">What time is it?</span>
+                        <span class="suggestion" onclick="sendQuickMessage('Tell me a joke')">Tell me a joke</span>
+                        <span class="suggestion" onclick="sendQuickMessage('Give me a fun fact')">Fun fact</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typing-indicator" style="display: none;">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <span>AI is typing...</span>
+        </div>
 
         <div class="input-area">
-            <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off" />
-            <button onclick="sendMessage()">Send</button>
+            <div class="input-container">
+                <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off" />
+                <button class="send-btn" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
         </div>
     </div>
 
     <script>
+        let conversationHistory = [];
+        
+        // Handle Enter key press
+        document.getElementById("user-input").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                sendMessage();
+            }
+        });
+
         async function sendMessage() {
             let input = document.getElementById("user-input");
             let userText = input.value.trim();
             if (!userText) return;
 
-            let chatBox = document.getElementById("chat-box");
-            chatBox.innerHTML += `<div class='user-msg'>You: ${userText}</div>`;
+            addUserMessage(userText);
             input.value = "";
+            showTypingIndicator();
 
-            const response = await fetch("/get", {
-                method: "POST",
-                body: new URLSearchParams({ msg: userText }),
-                headers: { "Content-Type": "application/x-www-form-urlencoded" }
-            });
+            try {
+                const response = await fetch("/get", {
+                    method: "POST",
+                    body: new URLSearchParams({ msg: userText }),
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" }
+                });
 
-            const data = await response.json();
-            chatBox.innerHTML += `<div class='bot-msg'>Bot: ${data.response}</div>`;
+                const data = await response.json();
+                hideTypingIndicator();
+                addBotMessage(data.response);
+                
+                // Store in conversation history
+                conversationHistory.push({
+                    user: userText,
+                    bot: data.response,
+                    timestamp: new Date().toISOString()
+                });
+                
+            } catch (error) {
+                hideTypingIndicator();
+                addBotMessage("Sorry, I encountered an error. Please try again! 🔄");
+            }
+        }
+
+        function sendQuickMessage(message) {
+            document.getElementById("user-input").value = message;
+            sendMessage();
+        }
+
+        function addUserMessage(message) {
+            let chatBox = document.getElementById("chat-box");
+            let messageDiv = document.createElement("div");
+            messageDiv.className = "message user-message";
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="message-text">${escapeHtml(message)}</div>
+                    <div class="message-time">${getCurrentTime()}</div>
+                </div>
+                <div class="message-avatar user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+            `;
+            chatBox.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function addBotMessage(message) {
+            let chatBox = document.getElementById("chat-box");
+            let messageDiv = document.createElement("div");
+            messageDiv.className = "message bot-message";
+            messageDiv.innerHTML = `
+                <div class="message-avatar bot-avatar-small">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="message-content">
+                    <div class="message-text">${escapeHtml(message)}</div>
+                    <div class="message-time">${getCurrentTime()}</div>
+                </div>
+            `;
+            chatBox.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function showTypingIndicator() {
+            document.getElementById("typing-indicator").style.display = "flex";
+            scrollToBottom();
+        }
+
+        function hideTypingIndicator() {
+            document.getElementById("typing-indicator").style.display = "none";
+        }
+
+        function clearChat() {
+            if (confirm("Are you sure you want to clear the chat history?")) {
+                document.getElementById("chat-box").innerHTML = `
+                    <div class="welcome-message">
+                        <div class="bot-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="welcome-text">
+                            <h3>Hello! I'm your AI Assistant 👋</h3>
+                            <p>I'm here to help you with questions, calculations, fun facts, and more!</p>
+                            <div class="suggestions">
+                                <span class="suggestion" onclick="sendQuickMessage('What time is it?')">What time is it?</span>
+                                <span class="suggestion" onclick="sendQuickMessage('Tell me a joke')">Tell me a joke</span>
+                                <span class="suggestion" onclick="sendQuickMessage('Give me a fun fact')">Fun fact</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                conversationHistory = [];
+            }
+        }
+
+        function scrollToBottom() {
+            let chatBox = document.getElementById("chat-box");
             chatBox.scrollTop = chatBox.scrollHeight;
         }
+
+        function getCurrentTime() {
+            return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Auto-focus on input when page loads
+        window.addEventListener('load', function() {
+            document.getElementById("user-input").focus();
+        });
     </script>
 </body>
 </html>
